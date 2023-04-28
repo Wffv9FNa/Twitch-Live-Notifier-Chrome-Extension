@@ -19,8 +19,8 @@ To install the Twitch Live Notifier Chrome extension, follow these steps:
    git clone https://github.com/Wffv9FNa/Twitch-Live-Notifier-Chrome-Extension/
    ```
 
-2. Open the `manifest.json` file and replace the `clientId` and `clientSecret` values with your own Twitch API credentials. You can obtain these credentials by [creating a new application](https://dev.twitch.tv/console/apps/create) in the Twitch Developer Dashboard.
-3. Save the changes to the `manifest.json` file.
+2. Open the `background.js` file and replace the `clientId` and `clientSecret` values with your own Twitch API credentials. You can obtain these credentials by [creating a new application](https://dev.twitch.tv/console/apps/create) in the Twitch Developer Dashboard.
+3. Save the changes to the `background.js` file.
 4. Open the Chrome browser and navigate to the Extensions page (chrome://extensions/).
 5. Enable Developer mode in the top right corner.
 6. Click on "Load unpacked" button and select the folder containing the extension files.
