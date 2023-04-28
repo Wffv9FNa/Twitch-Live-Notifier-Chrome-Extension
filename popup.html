@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Twitch Channel Monitor</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <h1>Twitch Channel Monitor</h1>
+    <p>
+      Enter a Twitch channel name to monitor. The extension will open the channel in a new tab when it goes live.
+    </p>
+    <div>
+      <label for="channelInput">Channel name:</label>
+      <input type="text" id="channelInput">
+      <button id="addButton">Add</button>
+    </div>
+    <div id="channelList"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>
