@@ -9,7 +9,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   </head>
   <body>
-    <h1>Twitch Live Notifier</h1>
+    <header>
+      <h1>Twitch Live Notifier</h1>
+      <button id="settingsButton" class="settings-button" data-tooltip="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+        </svg>
+      </button>
+    </header>
+
+    <div id="credentialsWarning" class="warning-banner">
+      <svg class="warning-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <span>Twitch API credentials not set. Click the settings icon to configure.</span>
+    </div>
 
     <div class="container">
       <div class="input-group">
@@ -28,6 +43,30 @@
 
       <div id="emptyState" class="empty-state" style="display: none;">
         <p>No channels added yet. Start by adding your favorite Twitch channels above!</p>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button class="close-button" id="closeSettings">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="clientId">Client ID</label>
+            <input type="text" id="clientId" placeholder="Enter your Twitch Client ID">
+          </div>
+          <div class="form-group">
+            <label for="clientSecret">Client Secret</label>
+            <input type="password" id="clientSecret" placeholder="Enter your Twitch Client Secret">
+          </div>
+          <div class="button-group">
+            <button id="saveSettings" class="primary-button">Save Settings</button>
+            <button id="clearSettings" class="secondary-button">Clear Settings</button>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -15,6 +15,7 @@
     "storage",
 	"tabs",
     "alarms",
+    "notifications",
     "https://api.twitch.tv/*"
   ],
   "background": {

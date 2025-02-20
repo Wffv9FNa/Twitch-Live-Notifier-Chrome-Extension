@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const addButton = document.getElementById('addButton');
   const channelInput = document.getElementById('channelInput');
   const channelList = document.getElementById('channelList');
+  const credentialsWarning = document.getElementById('credentialsWarning');
+  const container = document.querySelector('.container');
 
   // Enable add button if input has value
   channelInput.addEventListener('input', (e) => {
@@ -27,9 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
             updateChannelList();
             channelInput.value = '';
             addButton.disabled = true;
+
+            // Immediately check if the new channel is live
             chrome.runtime.sendMessage({
               action: 'checkChannelStatus',
-              channelName
+              channelName: channelName
+            }, response => {
+              console.log('Message sent for channel:', channelName);
+              if (chrome.runtime.lastError) {
+                console.error('Error sending message:', chrome.runtime.lastError);
+              }
             });
           });
         }
@@ -107,4 +116,96 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial load
   updateChannelList();
+
+  // Settings Modal Elements
+  const settingsButton = document.getElementById('settingsButton');
+  const settingsModal = document.getElementById('settingsModal');
+  const closeSettings = document.getElementById('closeSettings');
+  const saveSettings = document.getElementById('saveSettings');
+  const clearSettings = document.getElementById('clearSettings');
+  const clientIdInput = document.getElementById('clientId');
+  const clientSecretInput = document.getElementById('clientSecret');
+
+  // Load existing settings
+  chrome.storage.sync.get(['clientId', 'clientSecret'], (data) => {
+    if (data.clientId) clientIdInput.value = data.clientId;
+    if (data.clientSecret) clientSecretInput.value = data.clientSecret;
+  });
+
+  // Settings Modal Controls
+  settingsButton.onclick = () => {
+    settingsModal.style.display = 'block';
+  };
+
+  closeSettings.onclick = () => {
+    settingsModal.style.display = 'none';
+  };
+
+  // Close modal when clicking outside
+  window.onclick = (event) => {
+    if (event.target === settingsModal) {
+      settingsModal.style.display = 'none';
+    }
+  };
+
+  // Save Settings
+  saveSettings.onclick = () => {
+    const clientId = clientIdInput.value.trim();
+    const clientSecret = clientSecretInput.value.trim();
+
+    if (!clientId || !clientSecret) {
+      alert('Please enter both Client ID and Client Secret');
+      return;
+    }
+
+    chrome.storage.sync.set({
+      clientId: clientId,
+      clientSecret: clientSecret
+    }, () => {
+      // Notify background script to refresh the token
+      chrome.runtime.sendMessage({ action: 'refreshToken' });
+      settingsModal.style.display = 'none';
+    });
+  };
+
+  // Clear Settings
+  clearSettings.onclick = () => {
+    if (confirm('Are you sure you want to clear your Twitch API credentials?')) {
+      chrome.storage.sync.remove(['clientId', 'clientSecret'], () => {
+        clientIdInput.value = '';
+        clientSecretInput.value = '';
+        chrome.runtime.sendMessage({ action: 'clearToken' });
+      });
+    }
+  };
+
+  // Check for credentials and show/hide warning
+  function checkCredentials() {
+    chrome.storage.sync.get(['clientId', 'clientSecret'], (data) => {
+      const hasCredentials = data.clientId && data.clientSecret;
+      credentialsWarning.style.display = hasCredentials ? 'none' : 'flex';
+      container.classList.toggle('has-warning', !hasCredentials);
+
+      // Optionally disable the add channel functionality if no credentials
+      if (!hasCredentials) {
+        addButton.disabled = true;
+        channelInput.disabled = true;
+        channelInput.placeholder = 'Please set up Twitch API credentials first';
+      } else {
+        addButton.disabled = !channelInput.value.trim();
+        channelInput.disabled = false;
+        channelInput.placeholder = 'Enter channel name';
+      }
+    });
+  }
+
+  // Check credentials initially
+  checkCredentials();
+
+  // Recheck credentials when settings are saved/cleared
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'sync' && (changes.clientId || changes.clientSecret)) {
+      checkCredentials();
+    }
+  });
 });
