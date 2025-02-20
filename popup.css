@@ -249,11 +249,13 @@ header {
 .modal-content {
   position: relative;
   background-color: var(--surface-color);
-  margin: 15% auto;
-  padding: calc(var(--spacing-unit) * 2);
-  width: 80%;
+  margin: 10% auto;
+  padding: calc(var(--spacing-unit) * 3);
+  width: 360px;
+  max-width: 90%;
   border-radius: var(--border-radius);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
 }
 
 .modal-header {
@@ -278,7 +280,8 @@ header {
 }
 
 .form-group {
-  margin-bottom: calc(var(--spacing-unit) * 2);
+  margin-bottom: calc(var(--spacing-unit) * 3);
+  width: 100%;
 }
 
 .form-group label {
@@ -295,6 +298,7 @@ header {
   border-radius: var(--border-radius);
   color: var(--text-primary);
   font-size: 0.9rem;
+  box-sizing: border-box;
 }
 
 .form-group input:focus {
