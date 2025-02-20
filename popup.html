@@ -1,21 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8">
-    <title>Twitch Channel Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Live Notifier</title>
     <link rel="stylesheet" href="popup.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   </head>
   <body>
-    <h1>Twitch Channel Monitor</h1>
-    <p>
-      Enter a Twitch channel name to monitor. The extension will open the channel in a new tab when it goes live.
-    </p>
-    <div>
-      <label for="channelInput">Channel name:</label>
-      <input type="text" id="channelInput">
-      <button id="addButton">Add</button>
+    <h1>Twitch Live Notifier</h1>
+
+    <div class="container">
+      <div class="input-group">
+        <input
+          type="text"
+          id="channelInput"
+          placeholder="Enter channel name"
+          aria-label="Channel name"
+        >
+        <button id="addButton" data-tooltip="Add channel to monitor">Add</button>
+      </div>
+
+      <div id="channelList">
+        <!-- Channels will be inserted here -->
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <p>No channels added yet. Start by adding your favorite Twitch channels above!</p>
+      </div>
     </div>
-    <div id="channelList"></div>
+
     <script src="popup.js"></script>
   </body>
 </html>
