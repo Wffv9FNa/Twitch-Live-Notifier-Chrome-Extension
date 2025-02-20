@@ -126,30 +126,86 @@ document.addEventListener('DOMContentLoaded', () => {
   const clientIdInput = document.getElementById('clientId');
   const clientSecretInput = document.getElementById('clientSecret');
 
-  // Load existing settings
-  chrome.storage.sync.get(['clientId', 'clientSecret'], (data) => {
-    if (data.clientId) clientIdInput.value = data.clientId;
-    if (data.clientSecret) clientSecretInput.value = data.clientSecret;
+  // Add these new elements
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabContents = document.querySelectorAll('.tab-content');
+  const checkIntervalInput = document.getElementById('checkInterval');
+
+  console.log('Initial element check:');
+  console.log('- Settings button found:', !!settingsButton);
+  console.log('- Settings modal found:', !!settingsModal);
+  console.log('- Close button found:', !!closeSettings);
+
+  settingsButton.addEventListener('click', () => {
+    console.log('Settings button clicked');
+    settingsModal.style.display = 'block';
+    console.log('Modal display style:', settingsModal.style.display);
   });
 
-  // Settings Modal Controls
-  settingsButton.onclick = () => {
-    settingsModal.style.display = 'block';
-  };
-
-  closeSettings.onclick = () => {
+  closeSettings.addEventListener('click', () => {
+    console.log('Close button clicked');
     settingsModal.style.display = 'none';
-  };
+    console.log('Modal display style after close:', settingsModal.style.display);
+  });
 
-  // Close modal when clicking outside
-  window.onclick = (event) => {
+  // Log event delegation for modal clicks
+  settingsModal.addEventListener('click', (event) => {
+    console.log('Modal clicked, target:', event.target.id);
     if (event.target === settingsModal) {
+      console.log('Clicking outside modal');
       settingsModal.style.display = 'none';
     }
-  };
+  });
 
-  // Save Settings
-  saveSettings.onclick = () => {
+  // Tab switching logic
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Update active tab button
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+
+      // Show corresponding tab content
+      const tabId = button.dataset.tab + 'Tab';
+      tabContents.forEach(content => {
+        content.style.display = content.id === tabId ? 'block' : 'none';
+      });
+    });
+  });
+
+  // Load all settings
+  chrome.storage.sync.get(['clientId', 'clientSecret', 'checkInterval'], (data) => {
+    if (data.clientId) clientIdInput.value = data.clientId;
+    if (data.clientSecret) clientSecretInput.value = data.clientSecret;
+    if (data.checkInterval) checkIntervalInput.value = data.checkInterval;
+  });
+
+  // Validate check interval input
+  checkIntervalInput.addEventListener('input', () => {
+    const value = parseInt(checkIntervalInput.value);
+    if (value < 1) checkIntervalInput.value = 1;
+    if (value > 60) checkIntervalInput.value = 60;
+  });
+
+  // API Settings buttons
+  const saveApiSettings = document.getElementById('saveApiSettings');
+  const clearApiSettings = document.getElementById('clearApiSettings');
+
+  // Interval Settings buttons
+  const saveIntervalSettings = document.getElementById('saveIntervalSettings');
+  const restoreDefaultInterval = document.getElementById('restoreDefaultInterval');
+
+  // Helper function for temporary feedback
+  function showFeedback(button, originalText) {
+    button.textContent = '✓ Saved';
+    button.disabled = true;
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.disabled = false;
+    }, 1500);
+  }
+
+  // API Settings handlers
+  saveApiSettings.addEventListener('click', () => {
     const clientId = clientIdInput.value.trim();
     const clientSecret = clientSecretInput.value.trim();
 
@@ -158,26 +214,43 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    chrome.storage.sync.set({
-      clientId: clientId,
-      clientSecret: clientSecret
-    }, () => {
-      // Notify background script to refresh the token
+    chrome.storage.sync.set({ clientId, clientSecret }, () => {
       chrome.runtime.sendMessage({ action: 'refreshToken' });
-      settingsModal.style.display = 'none';
+      showFeedback(saveApiSettings, 'Save Settings');
     });
-  };
+  });
 
-  // Clear Settings
-  clearSettings.onclick = () => {
-    if (confirm('Are you sure you want to clear your Twitch API credentials?')) {
+  clearApiSettings.addEventListener('click', () => {
+    if (confirm('Are you sure you want to clear your API credentials?')) {
       chrome.storage.sync.remove(['clientId', 'clientSecret'], () => {
         clientIdInput.value = '';
         clientSecretInput.value = '';
-        chrome.runtime.sendMessage({ action: 'clearToken' });
+        chrome.runtime.sendMessage({ action: 'clearSettings' });
       });
     }
-  };
+  });
+
+  // Interval Settings handlers
+  saveIntervalSettings.addEventListener('click', () => {
+    const checkInterval = parseInt(checkIntervalInput.value) || 1;
+    chrome.storage.sync.set({ checkInterval }, () => {
+      chrome.runtime.sendMessage({
+        action: 'updateSettings',
+        checkInterval
+      });
+      showFeedback(saveIntervalSettings, 'Save Settings');
+    });
+  });
+
+  restoreDefaultInterval.addEventListener('click', () => {
+    checkIntervalInput.value = '1';
+    chrome.storage.sync.set({ checkInterval: 1 }, () => {
+      chrome.runtime.sendMessage({
+        action: 'updateSettings',
+        checkInterval: 1
+      });
+    });
+  });
 
   // Check for credentials and show/hide warning
   function checkCredentials() {

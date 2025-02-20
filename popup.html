@@ -54,17 +54,42 @@
           <button class="close-button" id="closeSettings">&times;</button>
         </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label for="clientId">Client ID</label>
-            <input type="text" id="clientId" placeholder="Enter your Twitch Client ID">
+          <div class="tabs">
+            <button class="tab-button active" data-tab="api">API Credentials</button>
+            <button class="tab-button" data-tab="timing">Check Interval</button>
           </div>
-          <div class="form-group">
-            <label for="clientSecret">Client Secret</label>
-            <input type="password" id="clientSecret" placeholder="Enter your Twitch Client Secret">
+
+          <div class="tab-content" id="apiTab">
+            <div class="form-group">
+              <label for="clientId">Client ID</label>
+              <input type="text" id="clientId" placeholder="Enter your Twitch Client ID">
+            </div>
+            <div class="form-group">
+              <label for="clientSecret">Client Secret</label>
+              <input type="password" id="clientSecret" placeholder="Enter your Twitch Client Secret">
+            </div>
+            <div class="button-group">
+              <button id="saveApiSettings" class="primary-button">Save Settings</button>
+              <button id="clearApiSettings" class="secondary-button">Clear Settings</button>
+            </div>
           </div>
-          <div class="button-group">
-            <button id="saveSettings" class="primary-button">Save Settings</button>
-            <button id="clearSettings" class="secondary-button">Clear Settings</button>
+
+          <div class="tab-content" id="timingTab" style="display: none;">
+            <div class="form-group">
+              <label for="checkInterval">Check Interval</label>
+              <input
+                type="number"
+                id="checkInterval"
+                min="1"
+                max="60"
+                value="1"
+                class="number-input">
+              <small class="help-text">How often to check for live channels (in minutes)</small>
+            </div>
+            <div class="button-group">
+              <button id="saveIntervalSettings" class="primary-button">Save Settings</button>
+              <button id="restoreDefaultInterval" class="secondary-button">Restore Default</button>
+            </div>
           </div>
         </div>
       </div>

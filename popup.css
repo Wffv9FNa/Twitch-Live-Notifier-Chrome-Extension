@@ -247,12 +247,10 @@ header {
 }
 
 .modal-content {
-  position: relative;
-  background-color: var(--surface-color);
-  margin: 10% auto;
-  padding: calc(var(--spacing-unit) * 3);
   width: 360px;
-  max-width: 90%;
+  margin: 5% auto;
+  padding: calc(var(--spacing-unit) * 3);
+  background-color: var(--surface-color);
   border-radius: var(--border-radius);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
@@ -279,9 +277,40 @@ header {
   padding: var(--spacing-unit);
 }
 
+.tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: calc(var(--spacing-unit)) calc(var(--spacing-unit) * 2);
+  cursor: pointer;
+  font-size: 0.9rem;
+  position: relative;
+  transition: var(--transition);
+}
+
 .form-group {
-  margin-bottom: calc(var(--spacing-unit) * 3);
-  width: 100%;
+  margin-bottom: calc(var(--spacing-unit) * 2.5);
+}
+
+.form-group:last-child {
+  margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+.button-group {
+  margin-top: calc(var(--spacing-unit) * 2);
+  display: flex;
+  gap: var(--spacing-unit);
+  justify-content: flex-end;
+}
+
+.tab-content {
+  padding-top: calc(var(--spacing-unit));
 }
 
 .form-group label {
@@ -305,13 +334,6 @@ header {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(145, 70, 255, 0.2);
-}
-
-.button-group {
-  display: flex;
-  gap: var(--spacing-unit);
-  justify-content: flex-end;
-  margin-top: calc(var(--spacing-unit) * 2);
 }
 
 .primary-button {
@@ -370,4 +392,22 @@ header {
 /* When credentials are missing, add some padding to the container */
 .container.has-warning {
   padding-top: 0;
+}
+
+.number-input {
+  width: 100%;
+  padding: calc(var(--spacing-unit) * 1.5);
+  background-color: var(--background-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.help-text {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: var(--spacing-unit);
 }
