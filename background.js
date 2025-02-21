@@ -2,45 +2,81 @@
 let clientId = null;
 let clientSecret = null;
 let accessToken = null;
-const checkInterval = 60000; // 1 minute
+let checkInterval = 1; // 1 minute default
+
+console.log('Background script initialized');
 
 // Load credentials on startup
-chrome.storage.sync.get(['clientId', 'clientSecret'], (data) => {
-  clientId = data.clientId;
-  clientSecret = data.clientSecret;
+chrome.storage.sync.get(['clientId', 'clientSecret', 'checkInterval'], (data) => {
+  console.log('Initial settings loaded:', {
+    hasClientId: !!data.clientId,
+    hasClientSecret: !!data.clientSecret,
+    checkInterval: data.checkInterval || 1
+  });
+
+  clientId = data.clientId || null;
+  clientSecret = data.clientSecret || null;
+  checkInterval = data.checkInterval || 1;
+
+  console.log('Global variables set:', {
+    hasClientId: !!clientId,
+    hasClientSecret: !!clientSecret
+  });
+
   if (clientId && clientSecret) {
+    console.log('Credentials found, fetching initial token');
     fetchAccessToken();
   }
 });
 
 async function hasValidCredentials() {
+  // First check global variables
+  if (clientId && clientSecret) {
+    console.log('Using cached credentials');
+    return true;
+  }
+
+  // If not in globals, check storage
   const data = await new Promise(resolve => {
     chrome.storage.sync.get(['clientId', 'clientSecret'], resolve);
   });
 
-  if (!data.clientId || !data.clientSecret) {
-    console.log('Missing Twitch API credentials');
-    return false;
-  }
+  console.log('Checking credentials validity:', {
+    hasClientId: !!data.clientId,
+    hasClientSecret: !!data.clientSecret
+  });
 
-  // Update our runtime variables if they've changed
-  if (data.clientId !== clientId || data.clientSecret !== clientSecret) {
+  // Update globals if found in storage
+  if (data.clientId && data.clientSecret) {
     clientId = data.clientId;
     clientSecret = data.clientSecret;
+    console.log('Updated global credentials from storage');
   }
 
-  return true;
+  return !!(data.clientId && data.clientSecret);
 }
 
 async function fetchAccessToken() {
-  if (!await hasValidCredentials()) {
-    return;
+  console.log('Fetching access token with credentials:', {
+    clientId: clientId ? 'present' : 'missing',
+    clientSecret: clientSecret ? 'present' : 'missing'
+  });
+
+  if (!clientId || !clientSecret) {
+    console.error('Missing credentials for token fetch');
+    return null;
   }
 
   try {
     const response = await fetch(
-      `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
-      { method: 'POST' }
+      `https://id.twitch.tv/oauth2/token`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
+      }
     );
 
     if (!response.ok) {
@@ -48,58 +84,62 @@ async function fetchAccessToken() {
     }
 
     const data = await response.json();
+    console.log('Token fetch successful');
     accessToken = data.access_token;
     return accessToken;
   } catch (error) {
     console.error('Failed to fetch access token:', error);
-    accessToken = null;
+    return null;
   }
 }
 
 async function checkChannelStatus(channelName = null) {
-  // First check if we have valid credentials
+  console.log('checkChannelStatus called for:', channelName || 'all channels');
+
   if (!await hasValidCredentials()) {
-    console.log('Skipping channel check - no valid credentials');
+    console.log('No valid credentials, skipping check');
     return;
   }
 
-  // If no access token, try to get one
   if (!accessToken) {
+    console.log('No access token, attempting to fetch');
     await fetchAccessToken();
   }
 
-  // If still no access token, return
   if (!accessToken) {
-    console.error('No access token available');
+    console.error('Failed to obtain access token');
     return;
   }
 
   try {
-    // Get channels and notifications from storage
     const data = await new Promise(resolve => {
-      chrome.storage.sync.get(['channels', 'lastNotified'], data => resolve({
-        channels: data.channels || [],
-        lastNotified: data.lastNotified || {}
-      }));
+      chrome.storage.sync.get(['channels', 'lastNotified'], data => {
+        console.log('Retrieved storage data:', {
+          channelCount: (data.channels || []).length,
+          lastNotified: data.lastNotified || {}
+        });
+        resolve({
+          channels: data.channels || [],
+          lastNotified: data.lastNotified || {}
+        });
+      });
     });
 
     let channels = data.channels;
-    let lastNotified = data.lastNotified;
-
-    // If channelName is provided, only check that channel
     if (channelName) {
       channels = channels.filter(c => c.name === channelName);
+      console.log('Filtered to specific channel:', channelName);
     }
 
-    // Skip if no channels to check
-    if (channels.length === 0) {
-      return;
-    }
+    const lastNotified = data.lastNotified || {};
 
-    // Check each active channel
     for (const channel of channels) {
-      if (!channel.active) continue;
+      if (!channel.active) {
+        console.log('Channel inactive, skipping:', channel.name);
+        continue;
+      }
 
+      console.log('Checking channel:', channel.name);
       const response = await fetch(
         `https://api.twitch.tv/helix/streams?user_login=${channel.name}`,
         {
@@ -111,27 +151,33 @@ async function checkChannelStatus(channelName = null) {
       );
 
       if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired, fetch new one and retry
-          await fetchAccessToken();
-          return checkChannelStatus(channelName);
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.error('API response not ok:', response.status, response.statusText);
+        continue;
       }
 
       const streamData = await response.json();
-      const isLiveNow = streamData.data.length > 0;
+      console.log('Stream data received for', channel.name, ':', streamData);
 
+      const isLiveNow = streamData.data.length > 0;
       if (isLiveNow) {
         const stream = streamData.data[0];
         const streamStartTime = new Date(stream.started_at).getTime();
         const lastNotifiedTime = lastNotified[channel.name] || 0;
 
+        console.log('Stream status for', channel.name, {
+          streamStartTime: new Date(streamStartTime),
+          lastNotifiedTime: new Date(lastNotifiedTime),
+          shouldNotify: streamStartTime > lastNotifiedTime
+        });
+
         if (streamStartTime > lastNotifiedTime) {
-          // Check if the channel's tab is already open
           const twitchUrl = `https://www.twitch.tv/${channel.name}`;
+          console.log('Checking for existing tabs for:', twitchUrl);
+
           chrome.tabs.query({ url: twitchUrl }, existingTabs => {
+            console.log('Existing tabs found:', existingTabs.length);
             if (existingTabs.length === 0) {
+              console.log('Creating new tab for:', channel.name);
               chrome.tabs.create({
                 url: twitchUrl,
                 active: false
@@ -139,10 +185,9 @@ async function checkChannelStatus(channelName = null) {
             }
           });
 
-          // Update last notified time
           lastNotified[channel.name] = Date.now();
+          console.log('Updating lastNotified time for:', channel.name, 'to:', new Date(lastNotified[channel.name]));
 
-          // Show Chrome notification
           chrome.notifications.create(`${channel.name}-live`, {
             type: 'basic',
             iconUrl: 'icon128.png',
@@ -151,43 +196,51 @@ async function checkChannelStatus(channelName = null) {
           });
         }
       } else {
-        // If channel is offline, remove the last notification time
+        console.log('Channel is offline:', channel.name);
         delete lastNotified[channel.name];
       }
     }
 
-    // Save updated notification times back to storage
+    console.log('Saving updated lastNotified times:', lastNotified);
     await chrome.storage.sync.set({ lastNotified });
 
   } catch (error) {
-    console.error('Error checking channel status:', error);
+    console.error('Error in checkChannelStatus:', error);
   }
 }
 
 // Message handlers
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Message received:', message);
+
   switch (message.action) {
     case 'refreshToken':
-      // Clear existing token and fetch new one
-      accessToken = null;
-      fetchAccessToken().then(() => {
-        checkChannelStatus(); // Check all channels with new token
+      console.log('Token refresh requested');
+      chrome.storage.sync.get(['clientId', 'clientSecret'], (data) => {
+        clientId = data.clientId;
+        clientSecret = data.clientSecret;
+        console.log('Refreshed credentials from storage:', {
+          hasClientId: !!clientId,
+          hasClientSecret: !!clientSecret
+        });
+        accessToken = null;
+        fetchAccessToken().then(() => checkChannelStatus());
       });
       break;
 
-    case 'clearToken':
-      // Clear all credentials and token
+    case 'clearSettings':
+      console.log('Settings clear requested');
       clientId = null;
       clientSecret = null;
       accessToken = null;
       break;
 
     case 'checkChannelStatus':
+      console.log('Channel status check requested for:', message.channelName);
       checkChannelStatus(message.channelName);
       break;
   }
 
-  // Return true to indicate we will send a response asynchronously
   return true;
 });
 
@@ -195,15 +248,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.alarms.create('checkChannelStatus', { periodInMinutes: 1 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
+  console.log('Alarm triggered:', alarm.name);
   if (alarm.name === 'checkChannelStatus') {
     checkChannelStatus();
   }
 });
 
-// Check channels when extension is first loaded
-// Only if we have credentials
-hasValidCredentials().then(valid => {
-  if (valid) {
-    checkChannelStatus();
-  }
-});
+// Initial check
+console.log('Performing initial channel check');
+checkChannelStatus();
