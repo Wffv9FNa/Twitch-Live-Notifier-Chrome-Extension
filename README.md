@@ -8,21 +8,21 @@ A Chrome extension that monitors Twitch channels and notifies you when they go l
   <table>
     <tr>
       <td align="center">
-        <img src="./Images/popup.png" width="380px" alt="Main Extension Interface"/><br/>
+        <img src="./images/main-extension.png" width="380px" alt="Main Extension Interface"/><br/>
         <em>Main Extension Interface</em>
       </td>
       <td align="center">
-        <img src="./Images/api-settings.png" width="380px" alt="API Credentials Settings"/><br/>
+        <img src="./images/api-settings.png" width="380px" alt="API Credentials Settings"/><br/>
         <em>API Credentials Settings</em>
       </td>
     </tr>
     <tr>
       <td align="center">
-        <img src="./Images/check-interval.png" width="380px" alt="Check Interval Settings"/><br/>
+        <img src="./images/check-interval.png" width="380px" alt="Check Interval Settings"/><br/>
         <em>Check Interval Settings</em>
       </td>
       <td align="center">
-        <img src="./Images/player-detection.png" width="380px" alt="Player Detection Settings"/><br/>
+        <img src="./images/player-detection.png" width="380px" alt="Player Detection Settings"/><br/>
         <em>Player Detection Settings</em>
       </td>
     </tr>
