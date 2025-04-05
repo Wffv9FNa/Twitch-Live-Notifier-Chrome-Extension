@@ -38,7 +38,7 @@ The Twitch Live Notifier is a Chrome extension that monitors Twitch channels and
 To use the Twitch Live Notifier Chrome extension, you will need:
 
 - Google Chrome browser
-- Twitch API credentials (client ID and client secret)
+- Twitch API credentials (client ID and client secret). You can obtain these credentials by [creating a new application](https://dev.twitch.tv/console/apps/create) in the Twitch Developer Dashboard.
 
 ## Installation
 
