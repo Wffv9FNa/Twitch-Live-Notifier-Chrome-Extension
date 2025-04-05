@@ -3,20 +3,23 @@ let clientId = null;
 let clientSecret = null;
 let accessToken = null;
 let checkInterval = 1; // 1 minute default
+let playerPatterns = null; // Will store player detection patterns
 
 console.log('Background script initialized');
 
 // Load credentials on startup
-chrome.storage.sync.get(['clientId', 'clientSecret', 'checkInterval'], (data) => {
+chrome.storage.sync.get(['clientId', 'clientSecret', 'checkInterval', 'playerPatterns'], (data) => {
   console.log('Initial settings loaded:', {
     hasClientId: !!data.clientId,
     hasClientSecret: !!data.clientSecret,
-    checkInterval: data.checkInterval || 1
+    checkInterval: data.checkInterval || 1,
+    hasPlayerPatterns: !!data.playerPatterns
   });
 
   clientId = data.clientId || null;
   clientSecret = data.clientSecret || null;
   checkInterval = data.checkInterval || 1;
+  playerPatterns = data.playerPatterns || initDefaultPlayerPatterns();
 
   console.log('Global variables set:', {
     hasClientId: !!clientId,
@@ -27,7 +30,118 @@ chrome.storage.sync.get(['clientId', 'clientSecret', 'checkInterval'], (data) =>
     console.log('Credentials found, fetching initial token');
     fetchAccessToken();
   }
+
+  // Auto detect installed players
+  detectInstalledPlayers();
 });
+
+// Initialize default player patterns if none exist
+function initDefaultPlayerPatterns() {
+  const defaultPatterns = {
+    official: {
+      name: "Official Twitch",
+      enabled: true,
+      pattern: `https://www.twitch.tv/CHANNEL_NAME*`
+    },
+    alternate: {
+      name: "Alternate Player for Twitch.tv",
+      enabled: true,
+      pattern: `chrome-extension://bhplkbgoehhhddaoolmakpocnenplmhf/player.html?channel=CHANNEL_NAME*`
+    }
+  };
+
+  // Save the default patterns
+  chrome.storage.sync.set({ playerPatterns: defaultPatterns });
+  return defaultPatterns;
+}
+
+// Auto-detect installed player extensions
+async function detectInstalledPlayers() {
+  console.log('Detecting installed Twitch player extensions');
+
+  const knownPlayers = [
+    {
+      id: "bhplkbgoehhhddaoolmakpocnenplmhf",
+      name: "Alternate Player for Twitch.tv",
+      pattern: `chrome-extension://bhplkbgoehhhddaoolmakpocnenplmhf/player.html?channel=CHANNEL_NAME*`
+    }
+    // Add other known players here in the future
+  ];
+
+  let detected = false;
+
+  // Check if the patterns already include this player
+  for (const player of knownPlayers) {
+    const found = Object.values(playerPatterns).some(p =>
+      p.pattern.includes(player.id)
+    );
+
+    if (!found) {
+      // Try to detect if it's installed
+      try {
+        const response = await fetch(`chrome-extension://${player.id}/manifest.json`, {
+          method: 'HEAD',
+          mode: 'no-cors'
+        });
+
+        // If we get here, the extension exists
+        console.log(`Detected player extension: ${player.name}`);
+
+        // Add to patterns
+        const key = player.id.substring(0, 8);
+        playerPatterns[key] = {
+          name: player.name,
+          enabled: true,
+          pattern: player.pattern
+        };
+
+        detected = true;
+      } catch (e) {
+        console.log(`Player ${player.name} not detected`);
+      }
+    }
+  }
+
+  // Save updated patterns if changes were made
+  if (detected) {
+    chrome.storage.sync.set({ playerPatterns });
+    console.log('Updated player patterns with detected extensions');
+  }
+}
+
+// Check if a channel is already open in any tab
+async function isChannelAlreadyOpen(channelName) {
+  if (!playerPatterns) {
+    // Load patterns if not already loaded
+    const data = await new Promise(resolve => {
+      chrome.storage.sync.get('playerPatterns', data => resolve(data));
+    });
+    playerPatterns = data.playerPatterns || initDefaultPlayerPatterns();
+  }
+
+  // Create URL patterns for all enabled players
+  const urlPatterns = Object.values(playerPatterns)
+    .filter(p => p.enabled)
+    .map(p => p.pattern.replace('CHANNEL_NAME', channelName));
+
+  console.log('Checking for channel tabs with patterns:', urlPatterns);
+
+  // Check each pattern in parallel
+  const tabQueryResults = await Promise.all(
+    urlPatterns.map(pattern =>
+      new Promise(resolve => {
+        chrome.tabs.query({ url: pattern }, tabs => resolve(tabs));
+      })
+    )
+  );
+
+  // Flatten results and check if any tabs were found
+  const allMatchingTabs = tabQueryResults.flat();
+  console.log(`Found ${allMatchingTabs.length} tabs for channel: ${channelName}`,
+    allMatchingTabs.map(t => t.url));
+
+  return allMatchingTabs.length > 0;
+}
 
 async function hasValidCredentials() {
   // First check global variables
@@ -172,28 +286,54 @@ async function checkChannelStatus(channelName = null) {
 
         if (streamStartTime > lastNotifiedTime) {
           const twitchUrl = `https://www.twitch.tv/${channel.name}`;
-          console.log('Checking for existing tabs for:', twitchUrl);
+          console.log('Checking if channel is already open:', channel.name);
 
-          chrome.tabs.query({ url: twitchUrl }, existingTabs => {
-            console.log('Existing tabs found:', existingTabs.length);
-            if (existingTabs.length === 0) {
-              console.log('Creating new tab for:', channel.name);
-              chrome.tabs.create({
-                url: twitchUrl,
-                active: false
-              });
-            }
-          });
+          // Use new function to check for channel in any player
+          const isAlreadyOpen = await isChannelAlreadyOpen(channel.name);
 
-          lastNotified[channel.name] = Date.now();
-          console.log('Updating lastNotified time for:', channel.name, 'to:', new Date(lastNotified[channel.name]));
+          if (!isAlreadyOpen) {
+            console.log('Creating new tab for:', channel.name);
+            chrome.tabs.create({
+              url: twitchUrl,
+              active: true  // Make the tab active when created
+            }, (tab) => {
+              if (chrome.runtime.lastError) {
+                console.error('Failed to create tab:', chrome.runtime.lastError);
+                // Try alternative method if the first one fails
+                chrome.windows.create({
+                  url: twitchUrl,
+                  focused: true
+                }, (window) => {
+                  if (chrome.runtime.lastError) {
+                    console.error('Failed to create window:', chrome.runtime.lastError);
+                  } else {
+                    console.log('Successfully created new window for:', channel.name);
+                  }
+                });
+              } else {
+                console.log('Successfully created new tab for:', channel.name);
+              }
+            });
 
-          chrome.notifications.create(`${channel.name}-live`, {
-            type: 'basic',
-            iconUrl: 'icon128.png',
-            title: `${channel.name} is Live!`,
-            message: `${stream.title}\nPlaying: ${stream.game_name}`
-          });
+            // Move notification creation inside the if block
+            chrome.notifications.create(`${channel.name}-live`, {
+              type: 'basic',
+              iconUrl: 'icon128.png',
+              title: `${channel.name} is Live!`,
+              message: `${stream.title}\nPlaying: ${stream.game_name}`
+            }, (notificationId) => {
+              // Only update lastNotified after notification is created
+              lastNotified[channel.name] = Date.now();
+              console.log('Updating lastNotified time for:', channel.name, 'to:', new Date(lastNotified[channel.name]));
+            });
+          } else {
+            console.log('Channel already open in a tab, skipping tab creation and notification');
+            // Update lastNotified even though we didn't show a notification
+            // This prevents checking again until a new stream starts
+            lastNotified[channel.name] = Date.now();
+          }
+        } else {
+          console.log('Channel is live but notification was already sent');
         }
       } else {
         console.log('Channel is offline:', channel.name);
@@ -238,6 +378,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'checkChannelStatus':
       console.log('Channel status check requested for:', message.channelName);
       checkChannelStatus(message.channelName);
+      break;
+
+    case 'updatePlayerPatterns':
+      console.log('Player pattern update requested');
+      chrome.storage.sync.get('playerPatterns', (data) => {
+        playerPatterns = data.playerPatterns;
+        console.log('Updated player patterns from storage');
+      });
       break;
   }
 

@@ -140,6 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Settings button clicked');
     settingsModal.style.display = 'block';
     console.log('Modal display style:', settingsModal.style.display);
+    // Update player list when modal is opened
+    updatePlayerList();
   });
 
   closeSettings.addEventListener('click', () => {
@@ -194,6 +196,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveIntervalSettings = document.getElementById('saveIntervalSettings');
   const restoreDefaultInterval = document.getElementById('restoreDefaultInterval');
 
+  // Player Settings elements
+  const playerList = document.getElementById('playerList');
+  const customPlayerPattern = document.getElementById('customPlayerPattern');
+  const customPlayerName = document.getElementById('customPlayerName');
+  const addCustomPattern = document.getElementById('addCustomPattern');
+  const resetPlayerPatterns = document.getElementById('resetPlayerPatterns');
+
+  // Add a function to check credentials and update the warning banner
+  function updateCredentialsWarning() {
+    chrome.storage.sync.get(['clientId', 'clientSecret'], (data) => {
+      if (!data.clientId || !data.clientSecret) {
+        credentialsWarning.style.display = 'flex';
+        container.classList.add('has-warning');
+      } else {
+        credentialsWarning.style.display = 'none';
+        container.classList.remove('has-warning');
+      }
+    });
+  }
+
+  // Call this function on initial load
+  updateCredentialsWarning();
+
   // Helper function for temporary feedback
   function showFeedback(button, originalText) {
     button.textContent = '✓ Saved';
@@ -201,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       button.textContent = originalText;
       button.disabled = false;
-    }, 1500);
+    }, 2000);
   }
 
   // API Settings handlers
@@ -216,6 +241,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chrome.storage.sync.set({ clientId, clientSecret }, () => {
       chrome.runtime.sendMessage({ action: 'refreshToken' });
+      // Update warning banner after saving credentials
+      updateCredentialsWarning();
       showFeedback(saveApiSettings, 'Save Settings');
     });
   });
@@ -226,6 +253,8 @@ document.addEventListener('DOMContentLoaded', () => {
         clientIdInput.value = '';
         clientSecretInput.value = '';
         chrome.runtime.sendMessage({ action: 'clearSettings' });
+        // Update warning banner after clearing credentials
+        updateCredentialsWarning();
       });
     }
   });
@@ -252,33 +281,115 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Check for credentials and show/hide warning
-  function checkCredentials() {
-    chrome.storage.sync.get(['clientId', 'clientSecret'], (data) => {
-      const hasCredentials = data.clientId && data.clientSecret;
-      credentialsWarning.style.display = hasCredentials ? 'none' : 'flex';
-      container.classList.toggle('has-warning', !hasCredentials);
+  // Player settings functionality
+  function updatePlayerList() {
+    chrome.storage.sync.get('playerPatterns', (data) => {
+      playerList.innerHTML = '';
 
-      // Optionally disable the add channel functionality if no credentials
-      if (!hasCredentials) {
-        addButton.disabled = true;
-        channelInput.disabled = true;
-        channelInput.placeholder = 'Please set up Twitch API credentials first';
-      } else {
-        addButton.disabled = !channelInput.value.trim();
-        channelInput.disabled = false;
-        channelInput.placeholder = 'Enter channel name';
+      const patterns = data.playerPatterns || {};
+
+      if (Object.keys(patterns).length === 0) {
+        playerList.innerHTML = '<p>No player patterns configured yet.</p>';
+        return;
       }
+
+      Object.entries(patterns).forEach(([key, player]) => {
+        const playerItem = document.createElement('div');
+        playerItem.className = 'player-item';
+
+        // Checkbox
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'player-checkbox';
+        checkbox.checked = player.enabled;
+        checkbox.onchange = () => {
+          patterns[key].enabled = checkbox.checked;
+          chrome.storage.sync.set({ playerPatterns: patterns }, () => {
+            chrome.runtime.sendMessage({ action: 'updatePlayerPatterns' });
+          });
+        };
+        playerItem.appendChild(checkbox);
+
+        // Player info
+        const playerInfo = document.createElement('div');
+        playerInfo.className = 'player-info';
+
+        const playerName = document.createElement('span');
+        playerName.className = 'player-name';
+        playerName.textContent = player.name;
+        playerInfo.appendChild(playerName);
+
+        const playerPattern = document.createElement('span');
+        playerPattern.className = 'player-pattern';
+        playerPattern.textContent = player.pattern;
+        playerInfo.appendChild(playerPattern);
+
+        playerItem.appendChild(playerInfo);
+
+        // Don't allow deletion of built-in players
+        if (key !== 'official') {
+          // Remove button
+          const removeButton = document.createElement('button');
+          removeButton.className = 'remove-player';
+          removeButton.innerHTML = '&times;';
+          removeButton.onclick = () => {
+            delete patterns[key];
+            chrome.storage.sync.set({ playerPatterns: patterns }, () => {
+              updatePlayerList();
+              chrome.runtime.sendMessage({ action: 'updatePlayerPatterns' });
+            });
+          };
+          playerItem.appendChild(removeButton);
+        }
+
+        playerList.appendChild(playerItem);
+      });
     });
   }
 
-  // Check credentials initially
-  checkCredentials();
+  // Add custom player pattern
+  addCustomPattern.addEventListener('click', () => {
+    const pattern = customPlayerPattern.value.trim();
+    const name = customPlayerName.value.trim();
 
-  // Recheck credentials when settings are saved/cleared
-  chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'sync' && (changes.clientId || changes.clientSecret)) {
-      checkCredentials();
+    if (!pattern || !name) {
+      alert('Please enter both a pattern and a name');
+      return;
+    }
+
+    if (!pattern.includes('CHANNEL_NAME')) {
+      alert('Pattern must include CHANNEL_NAME as a placeholder');
+      return;
+    }
+
+    chrome.storage.sync.get('playerPatterns', (data) => {
+      const patterns = data.playerPatterns || {};
+      const key = `custom_${Date.now()}`;
+
+      patterns[key] = {
+        name: name,
+        enabled: true,
+        pattern: pattern
+      };
+
+      chrome.storage.sync.set({ playerPatterns: patterns }, () => {
+        updatePlayerList();
+        customPlayerPattern.value = '';
+        customPlayerName.value = '';
+        chrome.runtime.sendMessage({ action: 'updatePlayerPatterns' });
+        showFeedback(addCustomPattern, 'Add Player');
+      });
+    });
+  });
+
+  // Reset player patterns
+  resetPlayerPatterns.addEventListener('click', () => {
+    if (confirm('Are you sure you want to reset all player patterns to defaults?')) {
+      // Remove from storage - the background script will reinitialize defaults
+      chrome.storage.sync.remove('playerPatterns', () => {
+        updatePlayerList();
+        chrome.runtime.sendMessage({ action: 'updatePlayerPatterns' });
+      });
     }
   });
 });

@@ -57,6 +57,7 @@
           <div class="tabs">
             <button class="tab-button active" data-tab="api">API Credentials</button>
             <button class="tab-button" data-tab="timing">Check Interval</button>
+            <button class="tab-button" data-tab="players">Player Detection</button>
           </div>
 
           <div class="tab-content" id="apiTab">
@@ -89,6 +90,30 @@
             <div class="button-group">
               <button id="saveIntervalSettings" class="primary-button">Save Settings</button>
               <button id="restoreDefaultInterval" class="secondary-button">Restore Default</button>
+            </div>
+          </div>
+
+          <div class="tab-content" id="playersTab" style="display: none;">
+            <p>Configure which Twitch player extensions should be detected when checking if channels are already open.</p>
+
+            <div id="playerList" class="player-list">
+              <!-- Player patterns will be inserted here -->
+            </div>
+
+            <div class="form-group">
+              <label for="customPlayerName">Player Name</label>
+              <input type="text" id="customPlayerName" placeholder="Enter a name for this player">
+            </div>
+
+            <div class="form-group">
+              <label for="customPlayerPattern">URL Pattern</label>
+              <input type="text" id="customPlayerPattern" placeholder="https://example.com/player?channel=CHANNEL_NAME">
+              <small class="help-text">Must include CHANNEL_NAME as a placeholder where the channel name appears in the URL</small>
+            </div>
+
+            <div class="button-group">
+              <button id="addCustomPattern" class="primary-button">Add Player</button>
+              <button id="resetPlayerPatterns" class="secondary-button">Reset to Defaults</button>
             </div>
           </div>
         </div>

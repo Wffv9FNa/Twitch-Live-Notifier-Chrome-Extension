@@ -190,18 +190,37 @@ input:checked + .slider:before {
 [data-tooltip]:before {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   padding: calc(var(--spacing-unit) * 0.75);
   background-color: var(--surface-color);
   color: var(--text-primary);
   font-size: 0.8rem;
+  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   border-radius: var(--border-radius);
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 200px;
+  text-align: center;
   opacity: 0;
   visibility: hidden;
   transition: var(--transition);
+  z-index: 1001;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Position tooltips for elements at the top of the page to appear below */
+header [data-tooltip]:before {
+  top: 100%;
+  bottom: auto;
+  margin-top: 5px;
+}
+
+/* Position tooltips for other elements to appear above */
+.container [data-tooltip]:before {
+  bottom: 100%;
+  top: auto;
+  margin-bottom: 5px;
 }
 
 [data-tooltip]:hover:before {
@@ -244,16 +263,28 @@ header {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 1000;
+  overflow: hidden; /* Prevent outer scrollbar */
 }
 
 .modal-content {
   width: 360px;
+  max-height: 90vh;
   margin: 5% auto;
   padding: calc(var(--spacing-unit) * 3);
+  padding-bottom: 0;
   background-color: var(--surface-color);
   border-radius: var(--border-radius);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .modal-header {
@@ -294,23 +325,34 @@ header {
   transition: var(--transition);
 }
 
-.form-group {
-  margin-bottom: calc(var(--spacing-unit) * 2.5);
-}
-
-.form-group:last-child {
-  margin-bottom: calc(var(--spacing-unit) * 2);
-}
-
 .button-group {
+  position: relative;
   margin-top: calc(var(--spacing-unit) * 2);
   display: flex;
   gap: var(--spacing-unit);
   justify-content: flex-end;
+  background-color: var(--surface-color);
+  padding: calc(var(--spacing-unit) * 2) 0 calc(var(--spacing-unit) * 2) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
 }
 
 .tab-content {
   padding-top: calc(var(--spacing-unit));
+  flex: 1;
+  overflow-y: visible;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.form-group {
+  margin-bottom: calc(var(--spacing-unit) * 2.5);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-group:last-child {
+  margin-bottom: calc(var(--spacing-unit) * 2);
 }
 
 .form-group label {
@@ -321,12 +363,6 @@ header {
 
 .form-group input {
   width: 100%;
-  padding: calc(var(--spacing-unit) * 1.5);
-  background-color: var(--background-color);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--border-radius);
-  color: var(--text-primary);
-  font-size: 0.9rem;
   box-sizing: border-box;
 }
 
@@ -410,4 +446,146 @@ header {
   color: var(--text-secondary);
   font-size: 0.8rem;
   margin-top: var(--spacing-unit);
+}
+
+/* Add these new styles for the player detection tab */
+.player-list {
+  margin-bottom: calc(var(--spacing-unit) * 2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-unit);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.player-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--spacing-unit);
+  padding: calc(var(--spacing-unit) * 1.5);
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.player-item .player-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.player-item .player-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.player-item .player-pattern {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.player-item .player-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary-color);
+}
+
+.player-item .remove-player {
+  background: transparent;
+  border: none;
+  color: var(--error-color);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-item .remove-player:hover {
+  color: var(--text-primary);
+}
+
+/* Styles for custom pattern input */
+#customPlayerPattern, #customPlayerName {
+  font-family: monospace;
+}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-color);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--background-color);
+}
+
+/* For Edge/IE */
+::-webkit-scrollbar-corner {
+  background: var(--background-color);
+}
+
+/* Modal scrollbar could be styled slightly differently */
+.modal-content::-webkit-scrollbar {
+  width: 6px; /* Slightly thinner */
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: rgba(145, 70, 255, 0.7); /* Semi-transparent Twitch purple */
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color); /* Solid on hover */
+}
+
+/* Create spacer at the bottom of each tab content */
+.tab-content::after {
+  content: '';
+  display: block;
+  height: calc(var(--spacing-unit) * 3);
+}
+
+/* Ensure player list doesn't overflow */
+.player-list {
+  margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+/* Ensure forms don't get cut off */
+#playersTab .form-group:last-of-type {
+  margin-bottom: calc(var(--spacing-unit) * 4);
+}
+
+/* Adjust spacing for different tab contents */
+#apiTab, #timingTab {
+  padding-bottom: 0; /* Remove extra padding for shorter tabs */
+}
+
+#apiTab::after, #timingTab::after {
+  display: none; /* Remove the spacer for shorter tabs */
+}
+
+/* Only add bottom spacing for the players tab */
+#playersTab::after {
+  content: '';
+  display: block;
+  height: calc(var(--spacing-unit) * 3);
 }
