@@ -101,7 +101,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const updatedChannels = data.channels.map(c =>
               c.name === channel.name ? { ...c, active: toggleInput.checked } : c
             );
-            chrome.storage.sync.set({ channels: updatedChannels });
+            chrome.storage.sync.set({ channels: updatedChannels }, () => {
+              // If channel was just enabled, immediately check if it's live
+              if (toggleInput.checked) {
+                chrome.runtime.sendMessage({
+                  action: 'checkChannelStatus',
+                  channelName: channel.name
+                });
+              }
+            });
           });
         };
 

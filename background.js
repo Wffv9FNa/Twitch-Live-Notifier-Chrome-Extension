@@ -277,63 +277,66 @@ async function checkChannelStatus(channelName = null) {
         const stream = streamData.data[0];
         const streamStartTime = new Date(stream.started_at).getTime();
         const lastNotifiedTime = lastNotified[channel.name] || 0;
+        const shouldNotify = streamStartTime > lastNotifiedTime;
 
         console.log('Stream status for', channel.name, {
           streamStartTime: new Date(streamStartTime),
           lastNotifiedTime: new Date(lastNotifiedTime),
-          shouldNotify: streamStartTime > lastNotifiedTime
+          shouldNotify: shouldNotify
         });
 
-        if (streamStartTime > lastNotifiedTime) {
-          const twitchUrl = `https://www.twitch.tv/${channel.name}`;
-          console.log('Checking if channel is already open:', channel.name);
+        // Always check if the channel is already open first
+        console.log('Checking if channel is already open:', channel.name);
+        const isAlreadyOpen = await isChannelAlreadyOpen(channel.name);
+        const twitchUrl = `https://www.twitch.tv/${channel.name}`;
 
-          // Use new function to check for channel in any player
-          const isAlreadyOpen = await isChannelAlreadyOpen(channel.name);
+        // Handle opening tabs and notifications separately
+        if (!isAlreadyOpen) {
+          // Create new tab if channel is live and not already open
+          console.log('Creating new tab for:', channel.name);
+          chrome.tabs.create({
+            url: twitchUrl,
+            active: true  // Make the tab active when created
+          }, (tab) => {
+            if (chrome.runtime.lastError) {
+              console.error('Failed to create tab:', chrome.runtime.lastError);
+              // Try alternative method if the first one fails
+              chrome.windows.create({
+                url: twitchUrl,
+                focused: true
+              }, (window) => {
+                if (chrome.runtime.lastError) {
+                  console.error('Failed to create window:', chrome.runtime.lastError);
+                } else {
+                  console.log('Successfully created new window for:', channel.name);
+                }
+              });
+            } else {
+              console.log('Successfully created new tab for:', channel.name);
+            }
+          });
 
-          if (!isAlreadyOpen) {
-            console.log('Creating new tab for:', channel.name);
-            chrome.tabs.create({
-              url: twitchUrl,
-              active: true  // Make the tab active when created
-            }, (tab) => {
-              if (chrome.runtime.lastError) {
-                console.error('Failed to create tab:', chrome.runtime.lastError);
-                // Try alternative method if the first one fails
-                chrome.windows.create({
-                  url: twitchUrl,
-                  focused: true
-                }, (window) => {
-                  if (chrome.runtime.lastError) {
-                    console.error('Failed to create window:', chrome.runtime.lastError);
-                  } else {
-                    console.log('Successfully created new window for:', channel.name);
-                  }
-                });
-              } else {
-                console.log('Successfully created new tab for:', channel.name);
-              }
-            });
-
-            // Move notification creation inside the if block
+          // Only show notification if we haven't notified for this stream yet
+          if (shouldNotify) {
+            // Create notification
             chrome.notifications.create(`${channel.name}-live`, {
               type: 'basic',
               iconUrl: 'icon128.png',
               title: `${channel.name} is Live!`,
               message: `${stream.title}\nPlaying: ${stream.game_name}`
-            }, (notificationId) => {
-              // Only update lastNotified after notification is created
-              lastNotified[channel.name] = Date.now();
-              console.log('Updating lastNotified time for:', channel.name, 'to:', new Date(lastNotified[channel.name]));
             });
-          } else {
-            console.log('Channel already open in a tab, skipping tab creation and notification');
-            // Update lastNotified even though we didn't show a notification
-            // This prevents checking again until a new stream starts
+          }
+
+          // Always update lastNotified when we open a tab, regardless of notification
+          lastNotified[channel.name] = Date.now();
+          console.log('Updating lastNotified time for:', channel.name, 'to:', new Date(lastNotified[channel.name]));
+        } else {
+          console.log('Channel already open in a tab, skipping tab creation and notification');
+
+          // Update lastNotified if needed
+          if (shouldNotify) {
             lastNotified[channel.name] = Date.now();
           }
-        } else {
-          console.log('Channel is live but notification was already sent');
         }
       } else {
         console.log('Channel is offline:', channel.name);
@@ -380,6 +383,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       checkChannelStatus(message.channelName);
       break;
 
+    case 'updateSettings':
+      console.log('Settings update requested:', message);
+      if (message.checkInterval) {
+        // Update the global check interval
+        checkInterval = message.checkInterval;
+        console.log('Updated check interval to:', checkInterval, 'minutes');
+
+        // Clear existing alarm and create a new one with updated interval
+        chrome.alarms.clear('checkChannelStatus', (wasCleared) => {
+          console.log('Cleared existing alarm:', wasCleared);
+          chrome.alarms.create('checkChannelStatus', { periodInMinutes: checkInterval });
+          console.log('Created new alarm with interval:', checkInterval, 'minutes');
+        });
+      }
+      break;
+
     case 'updatePlayerPatterns':
       console.log('Player pattern update requested');
       chrome.storage.sync.get('playerPatterns', (data) => {
@@ -392,8 +411,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-// Set up periodic checking
-chrome.alarms.create('checkChannelStatus', { periodInMinutes: 1 });
+// Set up periodic checking - use the checkInterval variable
+chrome.alarms.create('checkChannelStatus', { periodInMinutes: checkInterval });
 
 chrome.alarms.onAlarm.addListener(alarm => {
   console.log('Alarm triggered:', alarm.name);
